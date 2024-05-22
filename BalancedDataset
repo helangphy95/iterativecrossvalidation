@@ -1,0 +1,33 @@
+#Shuffle and split the data into stable and unstable subsets
+stable_data = shuffle(data[data['stability'] == 1])
+unstable_data = shuffle(data[data['stability'] == 0])
+
+#Set the number of samples per dataset and the number of datasets
+samples_per_dataset = 570
+number_of_datasets = 41
+
+#Create balanced datasets without duplicates
+balanced_datasets = []
+indices_used_stable = set()
+indices_used_unstable = set()
+
+for _ in range(number_of_datasets):
+    stable_indices = [idx for idx in stable_data.index if idx not in indices_used_stable][:samples_per_dataset]
+    unstable_indices = [idx for idx in unstable_data.index if idx not in indices_used_unstable][:samples_per_dataset]
+    indices_used_stable.update(stable_indices)
+    indices_used_unstable.update(unstable_indices)
+    
+    #Create the dataset and add to the list
+    balanced_dataset = pd.concat([stable_data.loc[stable_indices], unstable_data.loc[unstable_indices]], axis=0)
+    balanced_datasets.append(balanced_dataset)
+
+#Remaining stable materials after creating balanced datasets
+remaining_stable_indices = [idx for idx in stable_data.index if idx not in indices_used_stable]
+remaining_stable_data = stable_data.loc[remaining_stable_indices][:35]
+
+#Randomly select 35 unstable materials for the leftover validation set
+remaining_unstable_data = unstable_data.sample(35, random_state=42)  
+validation_set = pd.concat([remaining_stable_data, remaining_unstable_data], axis=0)
+
+#Provide summary
+len(balanced_datasets), validation_set.shape
