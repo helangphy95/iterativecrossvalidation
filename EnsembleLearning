@@ -1,0 +1,74 @@
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+import os
+import numpy as np
+import joblib  # For saving and loading models
+
+#Path to the datasets directory
+datasets_dir = 'your_path.csv'
+
+#Load the rotation schedule. Make sure it is in CSV
+rotation_schedule = pd.read_csv('Your_schedule.csv')
+
+#Define the features to be used in the models
+feature_columns = ['weighted_avg_radius', 'avg_electronegativity',
+                   'weighted_avg_ionization', 'formation_energy_per_atom', 'fe_count']
+
+results = []
+
+#Directory to save the models
+models_dir = 'your_DIR'
+os.makedirs(models_dir, exist_ok=True)
+
+#Iterate through each row in the schedule for training
+for index, row in rotation_schedule.iterrows():
+    for dataset_num in range(1, 31):  #Assuming 30 datasets
+        dataset_role = row[f'Dataset {dataset_num}']
+
+        #Check if the dataset is for training in this iteration
+        if dataset_role == 'Training':
+            dataset_path = os.path.join(datasets_dir, f'balanced_dataset_{dataset_num}.csv')
+            data = pd.read_csv(dataset_path)
+
+            X = data[feature_columns]
+            y = data['stability']
+
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            #Training a Random Forest Classifier
+            clf = RandomForestClassifier(n_estimators=100, random_state=42)
+            clf.fit(X_train, y_train)
+
+            #Save the trained model
+            model_path = os.path.join(models_dir, f'model_{index}_{dataset_num}.joblib')
+            joblib.dump(clf, model_path)
+
+            #Predicting and evaluating the model
+            y_pred = clf.predict(X_test)
+            y_proba = clf.predict_proba(X_test)[:, 1]  #Probability estimates for the positive class if needed for AUC
+
+            #Calculating metrics
+            accuracy = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred, average='binary')
+            recall = recall_score(y_test, y_pred, average='binary')
+            f1 = f1_score(y_test, y_pred, average='binary')
+            auc = roc_auc_score(y_test, y_proba) if len(np.unique(y)) == 2 else "N/A"  #Check if binary classification
+
+            results.append({
+                'Iteration': index,
+                'Model': dataset_num,
+                'Accuracy': accuracy,
+                'Precision': precision,
+                'Recall': recall,
+                'F1 Score': f1,
+                'AUC': auc
+            })
+
+#Convert results to DataFrame and save to a CSV file
+results_df = pd.DataFrame(results)
+results_df.to_csv('your_path.csv', index=False)
+print("Results saved to your_path.csv")
+
+#Repeat again for SVM and GBM. Import necessary library. Modify the code accordingly
